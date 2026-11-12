@@ -17,6 +17,7 @@ passiveTCP(const char *service, int qlen)
 	struct addrinfo  hints;  // que tipo de direccion pedimos
 	struct addrinfo *res;    // direccion que llena el sistema
 	int              s, err; // socket y codigo de error
+	int              on = 1; // 1 = activar la opcion SO_REUSEADDR
 
 	memset(&hints, 0, sizeof(hints)); // todo en cero esas direcciones de
 	                                  // memoria pueden tener basura
@@ -33,6 +34,11 @@ passiveTCP(const char *service, int qlen)
 	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
 	if (s < 0) {
 		perror("socket");
+		exit(1);
+	}
+	// permite reusar el puerto aunque este en TIME_WAIT
+	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+		perror("setsockopt");
 		exit(1);
 	}
 
