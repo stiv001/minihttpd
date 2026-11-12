@@ -22,7 +22,7 @@ passiveTCP(const char *service, int qlen)
 	                                  // memoria pueden tener basura
 	hints.ai_family = AF_INET;        // IPv4
 	hints.ai_socktype = SOCK_STREAM;  // TCP
-	hints.ai_flags = AI_PASSIVE;      // escucharcualquier IP local
+	hints.ai_flags = AI_PASSIVE;      // escuchar cualquier IP local
 
 	err = getaddrinfo(NULL, service, &hints, &res);
 	if (err != 0) {
@@ -40,7 +40,7 @@ passiveTCP(const char *service, int qlen)
 		perror("bind");
 		exit(1);
 	}
-	freeaddrinfo(res); /* ya no se necesita la lista	 */
+	freeaddrinfo(res); // ya no se necesita la lista
 
 	if (listen(s, qlen) < 0) {
 		perror("listen");
