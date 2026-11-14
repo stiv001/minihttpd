@@ -1,57 +1,56 @@
-/* main.c - main */
+// main.c - servidor HTTP secuencial
 
-#include <netinet/in.h>
 #include <sys/socket.h>
 
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
+#include "http.h"
 #include "server.h"
 
-#define QLEN 32      // clientes que esperan el accept
-#define BUFSIZE 4096 // tamano del buffer de la peticion
-
-// main - servidor HTTP secuencial
+#define QLEN 32 // clientes que esperan el accept
 
 int
 main(int argc, char *argv[])
 {
-	char              *service = "8080"; // puerto por defecto
-	struct sockaddr_in client;           // direccion del cliente
-	socklen_t          alen;             // largo de esa direccion
-	int                sd, nsd;          // socket pasivo y del cliente
-	char               buf[BUFSIZE];     // peticion que llega
-	char              *resp;             // respuesta fija
-	int                n;                // bytes recibidos
+	char           *puerto = "8080"; // puerto por defecto
+	int             sd, nsd;         // socket pasivo y del cliente
+	char            texto_recibido[TAMANO_MAXIMO_PETICION]; // lo que llega
+	char            cuerpo_respuesta[2048]; // texto que se devuelve
+	struct peticion peticion;               // la peticion ya separada
+	int             bytes_recibidos;        // lo que trajo el recv
+	int             codigo_estado;          // 200, 400 o 405
 
 	if (argc > 1) //./minihttpd 9000
-		service = argv[1];
+		puerto = argv[1];
 
-	sd = passiveTCP(service, QLEN);
-	printf("minihttpd escuchando en el puerto %s\n", service);
+	sd = passiveTCP(puerto, QLEN);
+	printf("minihttpd escuchando en el puerto %s\n", puerto);
 
 	while (1) { // un cliente por vuelta
-		alen = sizeof(client);
-		nsd = accept(sd, (struct sockaddr *)&client, &alen);
+		nsd = accept(sd, NULL, NULL);
 		if (nsd < 0) {
 			perror("accept");
-			continue; // el servidor sigue vivo
+			continue;
 		}
 
-		n = recv(nsd, buf, sizeof(buf) - 1, 0);
-		if (n > 0) {
-			buf[n] = '\0'; // cerrar el texto
-			printf("---- peticion (%d bytes) ----\n%s", n, buf);
+		bytes_recibidos = recv(nsd, texto_recibido,
+		                       sizeof(texto_recibido) - 1, 0);
+		if (bytes_recibidos > 0) {
+			texto_recibido[bytes_recibidos] = '\0'; // cerrar el texto
+			codigo_estado = leer_peticion(texto_recibido, &peticion);
+			printf("%s %s -> %d\n", peticion.metodo, peticion.ruta,
+			       codigo_estado);
+			if (codigo_estado == 200)
+				snprintf(cuerpo_respuesta, sizeof(cuerpo_respuesta),
+				         "Ruta solicitada: %s\nHost: %s\nUser-Agent: %s\n",
+				         peticion.ruta, peticion.host,
+				         peticion.programa_cliente);
+			else
+				snprintf(cuerpo_respuesta, sizeof(cuerpo_respuesta),
+				         "Error %d\n", codigo_estado);
+			enviar_respuesta(nsd, codigo_estado, cuerpo_respuesta);
 		}
-
-		resp = "HTTP/1.1 200 OK\r\n"
-		       "Content-Type: text/plain\r\n"
-		       "Content-Length: 20\r\n"
-		       "Connection: close\r\n"
-		       "\r\n"
-		       "Hola desde minihttpd";
-		send(nsd, resp, strlen(resp), 0);
 		close(nsd); // fin de este cliente
 	}
 }
