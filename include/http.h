@@ -16,6 +16,8 @@ struct peticion {
 };
 
 int  leer_peticion(char *texto_recibido, struct peticion *peticion);
+void enviar_cabecera(int socket_cliente, int codigo_estado,
+                     const char *tipo_contenido, long bytes_cuerpo);
 void enviar_respuesta(int socket_cliente, int codigo_estado,
                       const char *cuerpo_respuesta);
 

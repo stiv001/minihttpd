@@ -1,4 +1,4 @@
-// http.c - leer_peticion, enviar_respuesta
+// http.c - leer_peticion, enviar_cabecera, enviar_respuesta
 
 #include <sys/socket.h>
 
@@ -50,28 +50,47 @@ frase_del_codigo(int codigo_estado)
 {
 	if (codigo_estado == 200)
 		return "OK";
+	if (codigo_estado == 400)
+		return "Bad Request";
+	if (codigo_estado == 403)
+		return "Forbidden";
+	if (codigo_estado == 404)
+		return "Not Found";
 	if (codigo_estado == 405)
 		return "Method Not Allowed";
-	return "Bad Request";
+	if (codigo_estado == 500)
+		return "Internal Server Error";
+	return "Internal Server Error"; // por si llega un codigo que no esta
+	                                // arriba
 }
 
-// enviar_respuesta: manda la linea de estado, los headers y el cuerpo
+// enviar_cabecera: manda la linea de estado y los headers.
+// El cuerpo se manda despues, aparte.
 void
-enviar_respuesta(int socket_cliente, int codigo_estado,
-                 const char *cuerpo_respuesta)
+enviar_cabecera(int socket_cliente, int codigo_estado,
+                const char *tipo_contenido, long bytes_cuerpo)
 {
 	char cabecera[256];  // linea de estado + headers
 	int  bytes_cabecera; // cuantos bytes ocupo la cabecera
 
-	bytes_cabecera = snprintf(cabecera, sizeof(cabecera),
-	                          "HTTP/1.1 %d %s\r\n"
-	                          "Content-Type: text/plain\r\n"
-	                          "Content-Length: %zu\r\n"
-	                          "Connection: close\r\n"
-	                          "\r\n",
-	                          codigo_estado,
-	                          frase_del_codigo(codigo_estado),
-	                          strlen(cuerpo_respuesta));
+	bytes_cabecera =
+	    snprintf(cabecera, sizeof(cabecera),
+	             "HTTP/1.1 %d %s\r\n"
+	             "Content-Type: %s\r\n"
+	             "Content-Length: %ld\r\n"
+	             "Connection: close\r\n"
+	             "\r\n",
+	             codigo_estado, frase_del_codigo(codigo_estado),
+	             tipo_contenido, bytes_cuerpo);
 	send(socket_cliente, cabecera, bytes_cabecera, 0);
+}
+
+// enviar_respuesta: respuesta corta de texto (para los errores)
+void
+enviar_respuesta(int socket_cliente, int codigo_estado,
+                 const char *cuerpo_respuesta)
+{
+	enviar_cabecera(socket_cliente, codigo_estado, "text/plain",
+	                strlen(cuerpo_respuesta));
 	send(socket_cliente, cuerpo_respuesta, strlen(cuerpo_respuesta), 0);
 }
