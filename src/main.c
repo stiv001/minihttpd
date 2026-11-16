@@ -11,6 +11,7 @@
 
 #include "files.h"
 #include "http.h"
+#include "mime.h"
 #include "server.h"
 
 #define QLEN             32   // clientes que esperan el accept
@@ -75,9 +76,13 @@ atender_cliente(int lista_vigilancia, int socket_cliente)
 
 	codigo_estado = leer_peticion(texto_recibido[socket_cliente],
 	                              &peticion);
-	if (codigo_estado == 200) // la peticion esta bien: buscar el archivo
+	if (codigo_estado == 200) { // la peticion esta bien: buscar el archivo
+		if (strcmp(peticion.ruta, "/") == 0) // la portada
+			snprintf(peticion.ruta, sizeof(peticion.ruta),
+			         "/index.html");
 		codigo_estado = abrir_archivo(peticion.ruta, &archivo,
 		                              &bytes_archivo);
+	}
 	printf("[socket %d] %s %s -> %d\n", socket_cliente, peticion.metodo,
 	       peticion.ruta, codigo_estado);
 
@@ -90,7 +95,8 @@ atender_cliente(int lista_vigilancia, int socket_cliente)
 	}
 
 	// todo bien: mandar la cabecera ahora y el archivo por pedacitos
-	enviar_cabecera(socket_cliente, 200, "text/plain", bytes_archivo);
+	enviar_cabecera(socket_cliente, 200, tipo_mime(peticion.ruta),
+	                bytes_archivo);
 	archivo_abierto[socket_cliente] = archivo;
 
 	// desde ahora avisar cuando se le pueda enviar (EPOLLOUT),

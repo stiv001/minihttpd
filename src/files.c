@@ -35,8 +35,6 @@ abrir_archivo(const char *ruta, int *archivo, long *bytes_archivo)
 	size_t      largo_carpeta;          // letras de carpeta_real
 	struct stat info;                   // datos del archivo abierto
 
-	if (strcmp(ruta, "/") == 0) // la portada
-		ruta = "/index.html";
 	snprintf(ruta_pedida, sizeof(ruta_pedida), "%s%s", CARPETA_WWW, ruta);
 
 	// realpath quita los .. y nos da la direccion verdadera
