@@ -1,10 +1,10 @@
-/* server.h - passiveTCP */
+// server.h - passiveTCP
 
 #ifndef SERVER_H
 #define SERVER_H
-// Crea un socket TCP pasivo escuchando en un puerto sus parametros son el
-// nombre
-//  del servicio y la longitud de la cola de espera
+
+// crea un socket TCP pasivo; service es el puerto ("8080") y qlen
+// cuantos clientes pueden esperar el accept
 int passiveTCP(const char *service, int qlen);
 
 #endif

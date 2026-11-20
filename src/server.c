@@ -1,4 +1,4 @@
-/* server.c - passiveTCP */
+// server.c - passiveTCP
 
 #include <netdb.h>
 #include <sys/socket.h>
@@ -9,48 +9,54 @@
 
 #include "server.h"
 
-// passiveTCP crea un socket TCP pasivo escuchando en un puerto
+// passiveTCP: crea un socket TCP pasivo que escucha en el puerto service
+// y deja que qlen clientes esperen el accept
 
 int
 passiveTCP(const char *service, int qlen)
 {
-	struct addrinfo  hints;  // que tipo de direccion pedimos
-	struct addrinfo *res;    // direccion que llena el sistema
-	int              s, err; // socket y codigo de error
-	int              on = 1; // 1 = activar la opcion SO_REUSEADDR
+	struct addrinfo  direccion_pedida;      // que tipo de direccion pedimos
+	struct addrinfo *direccion_encontrada;  // la que llena getaddrinfo
+	int              socket_servidor;       // el socket que escucha
+	int              codigo_error;          // lo que devuelve getaddrinfo
+	int              activar = 1;           // 1 = activar SO_REUSEADDR
 
-	memset(&hints, 0, sizeof(hints)); // todo en cero esas direcciones de
-	                                  // memoria pueden tener basura
-	hints.ai_family = AF_INET;        // IPv4
-	hints.ai_socktype = SOCK_STREAM;  // TCP
-	hints.ai_flags = AI_PASSIVE;      // escuchar cualquier IP local
+	memset(&direccion_pedida, 0, sizeof(direccion_pedida)); // sin basura
+	direccion_pedida.ai_family = AF_INET;       // IPv4
+	direccion_pedida.ai_socktype = SOCK_STREAM; // TCP
+	direccion_pedida.ai_flags = AI_PASSIVE;     // cualquier IP local
 
-	err = getaddrinfo(NULL, service, &hints, &res);
-	if (err != 0) {
-		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(err));
+	codigo_error = getaddrinfo(NULL, service, &direccion_pedida,
+	                           &direccion_encontrada);
+	if (codigo_error != 0) {
+		fprintf(stderr, "getaddrinfo: %s\n", gai_strerror(codigo_error));
 		exit(1);
 	}
 
-	s = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-	if (s < 0) {
+	socket_servidor = socket(direccion_encontrada->ai_family,
+	                         direccion_encontrada->ai_socktype,
+	                         direccion_encontrada->ai_protocol);
+	if (socket_servidor < 0) {
 		perror("socket");
 		exit(1);
 	}
 	// permite reusar el puerto aunque este en TIME_WAIT
-	if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)) < 0) {
+	if (setsockopt(socket_servidor, SOL_SOCKET, SO_REUSEADDR, &activar,
+	               sizeof(activar)) < 0) {
 		perror("setsockopt");
 		exit(1);
 	}
 
-	if (bind(s, res->ai_addr, res->ai_addrlen) < 0) {
+	if (bind(socket_servidor, direccion_encontrada->ai_addr,
+	         direccion_encontrada->ai_addrlen) < 0) {
 		perror("bind");
 		exit(1);
 	}
-	freeaddrinfo(res); // ya no se necesita la lista
+	freeaddrinfo(direccion_encontrada); // ya no se necesita
 
-	if (listen(s, qlen) < 0) {
+	if (listen(socket_servidor, qlen) < 0) {
 		perror("listen");
 		exit(1);
 	}
-	return s;
+	return socket_servidor;
 }

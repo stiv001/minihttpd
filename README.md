@@ -22,7 +22,7 @@ minihttpd/
 ├── README.md
 ├── include/    http.h, server.h, files.h, mime.h
 ├── src/        main.c, server.c, http.c, files.c, mime.c
-└── www/        index.html, style.css
+└── www/        index.html, style.css, image.png
 ```
 
 - `main.c`: el bucle con `epoll` y la atención de cada cliente.
@@ -56,3 +56,5 @@ Para no tener problemas de buffer overflow uso `snprintf` y `sscanf` con un tama
 **7. Archivos grandes por pedacitos.** Consultando con el profesor, me recomendó que los archivos grandes no se manden de una sola vez, porque mientras el servidor manda un archivo enorme los demás clientes se quedan esperando. Ahora el archivo se manda en pedacitos de 4096 bytes: cada vez que `epoll` avisa que el cliente puede recibir (`EPOLLOUT`) se manda un pedacito y se pasa a atender a los demás.
 
 **8. Tipos MIME (`mime.c`).** Hasta aquí todo se mandaba como `text/plain`, y el navegador mostraba el HTML como texto en vez de dibujar la página. Agregué `mime.c` con la tabla de tipos del enunciado (`.html`, `.css`, `.js`, `.png`, `.jpg`): se busca la extensión con `strrchr` (el último punto de la ruta) y se manda el tipo que le corresponde en `Content-Type`. Si la extensión no está en la tabla se manda `application/octet-stream`, que significa "datos sin un tipo conocido". Aquí tuve que mover el cambio de `/` a `/index.html` de `files.c` a `main.c`, porque si no `tipo_mime` recibía `/`, que no tiene extensión, y la portada salía con el tipo equivocado.
+
+**9. Página de prueba.** Armé una página sencilla en `www/`: `index.html` con un título y mi nombre, `style.css` con el color y la letra, y `image.png` con el logo de la Escuela Politécnica Nacional. Al abrirla, el navegador pide primero el `index.html` y después el `style.css` y la imagen, y cada uno llega con su tipo (`text/html`, `text/css` e `image/png`).
