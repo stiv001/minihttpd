@@ -111,8 +111,9 @@ atender_cliente(int lista_vigilancia, int socket_cliente)
 void
 enviar_pedacito(int lista_vigilancia, int socket_cliente)
 {
-	char pedacito[TAMANO_PEDACITO]; // parte del archivo que se envia
-	int  bytes_leidos;              // cuanto se leyo del archivo
+	char               pedacito[TAMANO_PEDACITO]; // parte del archivo
+	int                bytes_leidos;  // cuanto se leyo del archivo
+	struct epoll_event cambio;        // para volver al aviso de datos
 
 	bytes_leidos = read(archivo_abierto[socket_cliente], pedacito,
 	                    sizeof(pedacito));
@@ -120,7 +121,18 @@ enviar_pedacito(int lista_vigilancia, int socket_cliente)
 	    send(socket_cliente, pedacito, bytes_leidos, 0) == bytes_leidos)
 		return; // falta mas: el resto en los siguientes avisos
 
-	// se termino el archivo (read dio 0) o algo fallo
+	if (bytes_leidos == 0) { // se termino el archivo: la conexion sigue
+		close(archivo_abierto[socket_cliente]);
+		archivo_abierto[socket_cliente] = -1;
+		bytes_recibidos[socket_cliente] = 0; // cuaderno vacio otra vez
+		cambio.events = EPOLLIN; // volver a esperar otra peticion
+		cambio.data.fd = socket_cliente;
+		epoll_ctl(lista_vigilancia, EPOLL_CTL_MOD, socket_cliente,
+		          &cambio);
+		return;
+	}
+
+	// algo fallo al leer o al enviar
 	cerrar_cliente(lista_vigilancia, socket_cliente);
 }
 

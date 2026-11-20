@@ -78,10 +78,11 @@ enviar_cabecera(int socket_cliente, int codigo_estado,
 	             "HTTP/1.1 %d %s\r\n"
 	             "Content-Type: %s\r\n"
 	             "Content-Length: %ld\r\n"
-	             "Connection: close\r\n"
+	             "Connection: %s\r\n"
 	             "\r\n",
 	             codigo_estado, frase_del_codigo(codigo_estado),
-	             tipo_contenido, bytes_cuerpo);
+	             tipo_contenido, bytes_cuerpo,
+	             codigo_estado == 200 ? "keep-alive" : "close");
 	send(socket_cliente, cabecera, bytes_cabecera, 0);
 }
 

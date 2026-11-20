@@ -31,11 +31,11 @@ minihttpd/
 - `files.c`: busca el archivo pedido dentro de `www/`.
 - `mime.c`: dice qué tipo de contenido es cada archivo según su extensión.
 
-## Cómo fue avanzando
+## Desarrollo paso a paso
 
-**1. Estructura inicial.** Lo primero fue crear las carpetas y archivos que pide el enunciado (`include/`, `src/`, `www/`, el `Makefile` y este README), todavía casi vacíos.
+**1. Estructura inicial.** Lo primero fue crear las carpetas y archivos que pide el enunciado (`include/`, `src/`, `www/`, el `Makefile` y este README), todavía vacíos.
 
-**2. Servidor secuencial con respuesta fija.** Antes de meterme con HTTP quise asegurarme de que la parte del socket funcionara: que `bind` y `listen` no dieran error y que se pudiera conectar alguien. Para eso hice un servidor secuencial (atiende a un cliente, termina y pasa al siguiente) que siempre responde lo mismo. Con eso ya pude probar con `curl` y el navegador que la respuesta HTTP llegaba bien.
+**2. Servidor secuencial con respuesta fija.** No quise empezar por HTTP sin saber si lo básico funcionaba, así que primero me enfoqué en el socket: que `bind` y `listen` no dieran error y que de verdad alguien se pudiera conectar. Para eso hice un servidor secuencial (atiende a un cliente, termina y pasa al siguiente) que siempre responde lo mismo. Con eso ya pude probar con `curl` y el navegador que la respuesta HTTP llegaba bien.
 
 **3. El error "Address already in use".** Al probar me pasaba que si cerraba el servidor y lo volvía a abrir enseguida, `bind` fallaba con *Address already in use* y tenía que esperar un rato. Investigando vi que el puerto se queda un tiempo en estado TIME_WAIT después de cerrar. Hice una rama aparte para probar la solución y, cuando funcionó, la uní a main. La solución es `setsockopt` con `SO_REUSEADDR` antes del `bind`, así el servidor se puede reiniciar sin esperar.
 
@@ -44,7 +44,7 @@ minihttpd/
 - `400 Bad Request` si viene mal escrita o no cabe en 4096 bytes,
 - `405 Method Not Allowed` si el método no es `GET`.
 
-Para no tener problemas de buffer overflow uso `snprintf` y `sscanf` con un tamaño máximo en cada campo.
+Al copiar cada parte de la petición le pongo un límite con `sscanf` (por ejemplo `%1023s` para la ruta), y las respuestas las armo con `snprintf`. Así, aunque el cliente mande algo enorme, nunca se escribe fuera del espacio reservado (buffer overflow); por eso el enunciado pide no usar `strcpy` ni `sprintf`.
 
 **5. De secuencial a `epoll`.** Con el servidor secuencial vi que si un cliente se conectaba con `nc` y no mandaba nada, todos los demás se quedaban esperando. Como el proyecto pide atender varios clientes a la vez con un solo hilo, lo cambié a `epoll`: el servidor vigila todos los sockets y solo atiende al que tiene algo listo. Cada cliente tiene su propio buffer, así una petición que llega en partes se va juntando hasta que llega el `\r\n\r\n`. Ahora un cliente callado ya no traba a los demás.
 
@@ -57,4 +57,6 @@ Para no tener problemas de buffer overflow uso `snprintf` y `sscanf` con un tama
 
 **8. Tipos MIME (`mime.c`).** Hasta aquí todo se mandaba como `text/plain`, y el navegador mostraba el HTML como texto en vez de dibujar la página. Agregué `mime.c` con la tabla de tipos del enunciado (`.html`, `.css`, `.js`, `.png`, `.jpg`): se busca la extensión con `strrchr` (el último punto de la ruta) y se manda el tipo que le corresponde en `Content-Type`. Si la extensión no está en la tabla se manda `application/octet-stream`, que significa "datos sin un tipo conocido". Aquí tuve que mover el cambio de `/` a `/index.html` de `files.c` a `main.c`, porque si no `tipo_mime` recibía `/`, que no tiene extensión, y la portada salía con el tipo equivocado.
 
-**9. Página de prueba.** Armé una página sencilla en `www/`: `index.html` con un título y mi nombre, `style.css` con el color y la letra, y `image.png` con el logo de la Escuela Politécnica Nacional. Al abrirla, el navegador pide primero el `index.html` y después el `style.css` y la imagen, y cada uno llega con su tipo (`text/html`, `text/css` e `image/png`).
+**9. La página con HTML, CSS y el logo.** Armé una página sencilla en `www/`: `index.html` con un título y mi nombre, `style.css` con el color y la letra, y `image.png` con el logo de la Escuela Politécnica Nacional. Al abrirla, el navegador pide primero el `index.html` y después el `style.css` y la imagen, y cada uno llega con su tipo (`text/html`, `text/css` e `image/png`).
+
+**10. Conexiones persistentes.** Agregué conexiones persistentes con `Connection: keep-alive`. Después de responder un 200 la conexión ya no se cierra: el servidor vacía el buffer de ese cliente y vuelve a esperar con `EPOLLIN` a que pida otra cosa. Así el navegador pide el html, el css y el logo por la misma conexión. Si la respuesta es un error, la conexión se cierra como antes.
