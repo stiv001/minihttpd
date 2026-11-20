@@ -2,7 +2,6 @@
 
 Servidor HTTP/1.1 básico en C para Linux. Atiende varios clientes a la vez con un solo hilo usando `epoll` y sirve los archivos que están en la carpeta `www/`.
 
-Es el proyecto 1 de Computación Distribuida. Todavía está en proceso; abajo voy anotando cómo fue avanzando.
 
 ## Cómo compilar y ejecutar
 
